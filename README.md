@@ -1,2 +1,37 @@
-# mesh-messenger
-Free peer-to-peer messenger using public MQTT brokers + WebRTC. No central server, fully open source. Web + Native Android (Kotlin).
+# Mesh Messenger
+
+پیام‌رسان آزاد peer-to-peer بدون سرور مرکزی
+
+## ویژگی‌ها
+
+- چت متنی با ذخیره تاریخچه محلی
+- صحبت صوتی (WebRTC)
+- تماس تصویری (WebRTC)
+- ارسال فایل (MQTT برای فایل‌های کوچک + DataChannel برای بزرگ‌تر)
+- تم روشن / تاریک
+- ۶ سرور MQTT عمومی به عنوان بکاپ
+- دسترسی‌پذیری بالا (ARIA، کیبورد، صفحه‌خوان)
+- رابط کاملاً فارسی و RTL
+
+## نسخه وب
+
+فایل `web/index.html` را در مرورگر باز کنید.
+
+### نحوه استفاده
+
+1. نام و کد اتاق را وارد کنید
+2. روی «ورود به اتاق» کلیک کنید
+3. برای صحبت صوتی روی 🎙️ و برای تصویر روی 📹 کلیک کنید
+4. فایل را با 📎 ارسال کنید
+
+## نسخه اندروید بومی (Kotlin)
+
+در حال توسعه در پوشه `android/` با:
+- Jetpack Compose
+- Eclipse Paho / HiveMQ MQTT Client
+- Google WebRTC
+- معماری تمیز و دسترسی‌پذیر
+
+## لایسنس
+
+MIT - ساخته شده با ❤️
