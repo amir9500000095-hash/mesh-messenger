@@ -20,37 +20,76 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Install Android SDK cmdline-tools
-        run: |
-          mkdir -p $HOME/android-sdk/cmdline-tools
-          cd $HOME/android-sdk
-          curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o cmdtools.zip
-          unzip -q cmdtools.zip -d cmdline-tools
-          mv cmdline-tools/cmdline-tools cmdline-tools/latest
-          rm -f cmdtools.zip
-          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
+      - name: Cache Android SDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/android-sdk
+          key: android-sdk-35-${{ runner.os }}
 
-      - name: Install platform and build-tools
+      - name: Install Android SDK
+        env:
+          ANDROID_HOME: ${{ runner.temp }}/android-sdk
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          set -e
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          cd "$ANDROID_HOME"
+
+          if [ ! -x cmdline-tools/latest/bin/sdkmanager ]; then
+            echo "Downloading commandlinetools..."
+            curl -fL --retry 3 -o cmdtools.zip \
+              https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -q cmdtools.zip
+            rm -rf cmdline-tools/latest
+            mkdir -p cmdline-tools
+            mv cmdline-tools cmdline-tools-tmp 2>/dev/null || true
+            # zip extracts to 'cmdline-tools'
+            if [ -d cmdline-tools ]; then
+              mv cmdline-tools cmdline-tools/latest 2>/dev/null || {
+                mkdir -p cmdline-tools
+                mv cmdline-tools-tmp/* cmdline-tools/latest 2>/dev/null || mv cmdline-tools-tmp cmdline-tools/latest
+              }
+            fi
+            # Standard layout: cmdline-tools/latest/bin/sdkmanager
+            if [ ! -x cmdline-tools/latest/bin/sdkmanager ]; then
+              # try alternate layout from zip
+              find . -name sdkmanager -type f 2>/dev/null | head -5
+              TOOLS_DIR=$(find . -type d -name bin 2>/dev/null | head -1)
+              if [ -n "$TOOLS_DIR" ]; then
+                PARENT=$(dirname "$TOOLS_DIR")
+                mkdir -p cmdline-tools
+                rm -rf cmdline-tools/latest
+                mv "$PARENT" cmdline-tools/latest
+              fi
+            fi
+            rm -f cmdtools.zip
+          fi
+
+          test -x cmdline-tools/latest/bin/sdkmanager
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+
+      - name: Accept licenses and install packages
+        run: |
+          set -e
+          yes | sdkmanager --licenses || true
+          sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: local.properties
-        run: echo "sdk.dir=$HOME/android-sdk" > local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
       - name: Gradle wrapper
         run: |
           gradle wrapper --gradle-version 8.9
           chmod +x gradlew
+          ./gradlew --version
 
       - name: Build Debug APK
         run: |
           set -o pipefail
           ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee build.log
-          tail -80 build.log
 
       - name: Upload build log on failure
         if: failure()
