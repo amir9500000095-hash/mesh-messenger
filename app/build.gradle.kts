@@ -12,8 +12,8 @@ android {
         applicationId = "com.mesh.messenger"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -62,16 +62,10 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
 
-    // MQTT
     implementation("com.hivemq:hivemq-mqtt-client:1.3.3")
-
-    // Coroutines
+    implementation("io.getstream:stream-webrtc-android:1.1.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
-
-    // JSON
     implementation("com.google.code.gson:gson:2.11.0")
-
-    // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
