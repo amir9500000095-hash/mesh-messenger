@@ -45,7 +45,19 @@ class CallManager(
 
     private val iceServers = listOf(
         PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer(),
-        PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer()
+        PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer(),
+        PeerConnection.IceServer.builder("turn:openrelay.metered.ca:80")
+            .setUsername("openrelayproject")
+            .setPassword("openrelayproject")
+            .createIceServer(),
+        PeerConnection.IceServer.builder("turn:openrelay.metered.ca:443")
+            .setUsername("openrelayproject")
+            .setPassword("openrelayproject")
+            .createIceServer(),
+        PeerConnection.IceServer.builder("turn:openrelay.metered.ca:443?transport=tcp")
+            .setUsername("openrelayproject")
+            .setPassword("openrelayproject")
+            .createIceServer()
     )
 
     init {
@@ -160,7 +172,17 @@ class CallManager(
             override fun onDataChannel(dc: DataChannel?) {}
             override fun onRenegotiationNeeded() {}
             override fun onAddTrack(receiver: RtpReceiver?, streams: Array<out MediaStream>?) {
-                Log.i(TAG, "Remote track added")
+                Log.i(TAG, "Remote track added: " + (receiver?.track()?.kind() ?: "?"))
+                val track = receiver?.track()
+                if (track is AudioTrack) {
+                    track.setEnabled(true)
+                    track.setVolume(1.0)
+                    Log.i(TAG, "Remote audio track enabled")
+                }
+                if (track is VideoTrack) {
+                    track.setEnabled(true)
+                    Log.i(TAG, "Remote video track enabled")
+                }
             }
         })
     }
@@ -311,6 +333,7 @@ class CallManager(
             audioManager.requestAudioFocus(focusRequest!!)
         }
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        @Suppress("DEPRECATION")
         audioManager.isSpeakerphoneOn = true
     }
 
@@ -319,6 +342,7 @@ class CallManager(
             focusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
         }
         audioManager.mode = AudioManager.MODE_NORMAL
+        @Suppress("DEPRECATION")
         audioManager.isSpeakerphoneOn = false
     }
 
