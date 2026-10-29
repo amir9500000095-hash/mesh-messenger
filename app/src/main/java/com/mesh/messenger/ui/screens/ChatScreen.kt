@@ -42,6 +42,8 @@ fun ChatScreen(
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale("fa")) }
     val idleFlow = remember { MutableStateFlow(CallManager.CallState.IDLE) }
     val callState by (callManager?.state ?: idleFlow).collectAsState()
+    val online by mqtt.onlineUsers.collectAsState()
+    val livePeer = peerIdForCall ?: online.keys.firstOrNull()
 
     LaunchedEffect(Unit) {
         mqtt.incoming.collectLatest { env ->
@@ -78,29 +80,52 @@ fun ChatScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(chatId) },
+                title = {
+                    Column {
+                        Text(chatId)
+                        if (livePeer == null) {
+                            Text(
+                                "منتظر کاربر آنلاین برای تماس...",
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "بازگشت")
                     }
                 },
                 actions = {
-                    if (peerIdForCall != null && callManager != null) {
-                        IconButton(onClick = {
-                            if (callState == CallManager.CallState.IDLE) callManager.startVoiceCall(peerIdForCall)
-                            else callManager.endCall()
-                        }) {
-                            Icon(
-                                if (callState == CallManager.CallState.IDLE) Icons.Default.Call else Icons.Default.CallEnd,
-                                contentDescription = "تماس صوتی"
-                            )
+                    IconButton(
+                        enabled = callManager != null && (livePeer != null || callState != CallManager.CallState.IDLE),
+                        onClick = {
+                            if (callManager == null) return@IconButton
+                            if (callState == CallManager.CallState.IDLE) {
+                                livePeer?.let { callManager.startVoiceCall(it) }
+                            } else {
+                                callManager.endCall()
+                            }
                         }
-                        IconButton(onClick = {
-                            if (callState == CallManager.CallState.IDLE) callManager.startVideoCall(peerIdForCall)
-                            else callManager.endCall()
-                        }) {
-                            Icon(Icons.Default.Videocam, contentDescription = "تماس تصویری")
+                    ) {
+                        Icon(
+                            if (callState == CallManager.CallState.IDLE) Icons.Default.Call
+                            else Icons.Default.CallEnd,
+                            contentDescription = "تماس صوتی"
+                        )
+                    }
+                    IconButton(
+                        enabled = callManager != null && (livePeer != null || callState != CallManager.CallState.IDLE),
+                        onClick = {
+                            if (callManager == null) return@IconButton
+                            if (callState == CallManager.CallState.IDLE) {
+                                livePeer?.let { callManager.startVideoCall(it) }
+                            } else {
+                                callManager.endCall()
+                            }
                         }
+                    ) {
+                        Icon(Icons.Default.Videocam, contentDescription = "تماس تصویری")
                     }
                 }
             )
@@ -154,15 +179,15 @@ fun ChatScreen(
                     Spacer(Modifier.width(8.dp))
                     FilledIconButton(
                         onClick = {
-                            val text = input.trim()
-                            if (text.isNotEmpty()) {
-                                mqtt.sendChat(text, chatId)
+                            val textMsg = input.trim()
+                            if (textMsg.isNotEmpty()) {
+                                mqtt.sendChat(textMsg, chatId)
                                 messages.add(
                                     Message(
                                         chatId = chatId,
                                         senderId = mqtt.myId,
                                         senderName = mqtt.myName,
-                                        text = text,
+                                        text = textMsg,
                                         isMine = true
                                     )
                                 )
