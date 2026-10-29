@@ -40,7 +40,8 @@ fun ChatScreen(
     var input by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale("fa")) }
-    val callState by (callManager?.state ?: MutableStateFlow(CallManager.CallState.IDLE)).collectAsState()
+    val idleFlow = remember { MutableStateFlow(CallManager.CallState.IDLE) }
+    val callState by (callManager?.state ?: idleFlow).collectAsState()
 
     LaunchedEffect(Unit) {
         mqtt.incoming.collectLatest { env ->
@@ -86,24 +87,17 @@ fun ChatScreen(
                 actions = {
                     if (peerIdForCall != null && callManager != null) {
                         IconButton(onClick = {
-                            if (callState == CallManager.CallState.IDLE) {
-                                callManager.startVoiceCall(peerIdForCall)
-                            } else {
-                                callManager.endCall()
-                            }
+                            if (callState == CallManager.CallState.IDLE) callManager.startVoiceCall(peerIdForCall)
+                            else callManager.endCall()
                         }) {
                             Icon(
-                                if (callState == CallManager.CallState.IDLE) Icons.Default.Call
-                                else Icons.Default.CallEnd,
+                                if (callState == CallManager.CallState.IDLE) Icons.Default.Call else Icons.Default.CallEnd,
                                 contentDescription = "تماس صوتی"
                             )
                         }
                         IconButton(onClick = {
-                            if (callState == CallManager.CallState.IDLE) {
-                                callManager.startVideoCall(peerIdForCall)
-                            } else {
-                                callManager.endCall()
-                            }
+                            if (callState == CallManager.CallState.IDLE) callManager.startVideoCall(peerIdForCall)
+                            else callManager.endCall()
                         }) {
                             Icon(Icons.Default.Videocam, contentDescription = "تماس تصویری")
                         }
@@ -115,11 +109,7 @@ fun ChatScreen(
             Column {
                 if (callState != CallManager.CallState.IDLE) {
                     Surface(
-                        color = when (callState) {
-                            CallManager.CallState.CONNECTED -> MaterialTheme.colorScheme.secondary
-                            CallManager.CallState.INCOMING -> MaterialTheme.colorScheme.tertiary
-                            else -> MaterialTheme.colorScheme.primary
-                        },
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -149,7 +139,6 @@ fun ChatScreen(
                         }
                     }
                 }
-
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(8.dp),
                     verticalAlignment = Alignment.Bottom
@@ -198,52 +187,38 @@ fun ChatScreen(
             contentPadding = PaddingValues(vertical = 12.dp)
         ) {
             items(messages) { msg ->
-                when (msg.type) {
-                    MessageType.SYSTEM -> {
-                        Text(
-                            msg.text ?: "",
-                            modifier = Modifier.fillMaxWidth(),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                        )
-                    }
-                    else -> {
-                        val isMe = msg.isMine
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = if (isMe) Alignment.Start else Alignment.End
+                if (msg.type == MessageType.SYSTEM) {
+                    Text(
+                        msg.text ?: "",
+                        modifier = Modifier.fillMaxWidth(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                } else {
+                    val isMe = msg.isMine
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = if (isMe) Alignment.Start else Alignment.End
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (isMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.widthIn(max = 300.dp)
                         ) {
-                            Surface(
-                                shape = RoundedCornerShape(
-                                    topStart = 16.dp, topEnd = 16.dp,
-                                    bottomStart = if (isMe) 4.dp else 16.dp,
-                                    bottomEnd = if (isMe) 16.dp else 4.dp
-                                ),
-                                color = if (isMe) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier.widthIn(max = 300.dp)
-                            ) {
-                                Column(Modifier.padding(10.dp)) {
-                                    if (!isMe) {
-                                        Text(
-                                            msg.senderName,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                    Text(
-                                        msg.text ?: "",
-                                        color = if (isMe) MaterialTheme.colorScheme.onPrimary
-                                        else MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        timeFormat.format(Date(msg.timestamp)),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = (if (isMe) MaterialTheme.colorScheme.onPrimary
-                                        else MaterialTheme.colorScheme.onSurface).copy(alpha = 0.6f),
-                                        modifier = Modifier.align(Alignment.End)
-                                    )
+                            Column(Modifier.padding(10.dp)) {
+                                if (!isMe) {
+                                    Text(msg.senderName, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                                 }
+                                Text(
+                                    msg.text ?: "",
+                                    color = if (isMe) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    timeFormat.format(Date(msg.timestamp)),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = (if (isMe) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface).copy(alpha = 0.6f),
+                                    modifier = Modifier.align(Alignment.End)
+                                )
                             }
                         }
                     }
